@@ -1,9 +1,8 @@
 import base64
 from io import BytesIO
 from PIL import Image
-import tkinter as tk
-from tkinter import filedialog, messagebox
-
+import argparse
+import os
 
 def image_to_base64(image_path):
     # Open the image file
@@ -16,21 +15,8 @@ def image_to_base64(image_path):
         img_byte = buffered.getvalue()
         # Convert the byte data to a base64 string
         img_base64 = base64.b64encode(img_byte).decode("utf-8")
-
+    
     return img_base64
-
-
-def select_file():
-    file_path = filedialog.askopenfilename()
-    if file_path:
-        try:
-            base64_str = image_to_base64(file_path)
-            text_area.delete(1.0, tk.END)  # Clear the text area
-            text_area.insert(tk.END, base64_str)  # Insert the base64 string
-            save_base64_to_curl_file(base64_str, file_path)
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to convert image: {str(e)}")
-
 
 def save_base64_to_curl_file(base64_str, original_image_path):
     # Construct the cURL command
@@ -42,39 +28,37 @@ def save_base64_to_curl_file(base64_str, original_image_path):
         "  \"messages\": ["
         "    {"
         "      \"role\": \"user\","
-        "      \"content\": \"Can you tell me what the following image depicts?\","
-        f"      \"images\":[ \"{base64_str}\"]"
+        "      \"content\": \"Is there a person in the image?\","
+        f"     \"images\":[ \"{base64_str}\"]"
         "    }"
         "  ],"
         " \"stream\": false"
         "}'"
     )
 
-    # curl_command = (
-       # f"curl --location 'http://localhost:11434/api/chat'\ \n"
-       # f"--header 'Content-Type: application/json'\  \n"
-       # f" --data '{ "
-       # f"-d '{{\"image_data\": \"{base64_str}\"}}'"
-   # )
     # Make the output file path based on the original image path
     output_file_path = original_image_path + "_curl_command.txt"
     # Write the cURL command to the file
     with open(output_file_path, 'w') as outfile:
         outfile.write(curl_command)
-    messagebox.showinfo("Success", f"cURL command saved to: {output_file_path}")
+    
+    print(f"cURL command saved to: {output_file_path}")
 
+def main(image_path):
+    try:
+        base64_str = image_to_base64(image_path)
+        print(f"Base64 string generated for: {image_path}")
+        save_base64_to_curl_file(base64_str, image_path)
+    except Exception as e:
+        print(f"Failed to convert image: {str(e)}")
 
-# GUI setup
-root = tk.Tk()
-root.title("Image to Base64 Converter")
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Convert an image to Base64 and generate a cURL command.")
+    parser.add_argument('image_file', type=str, help='Path to the image file.')
 
-frame = tk.Frame(root)
-frame.pack(padx=10, pady=10)
+    args = parser.parse_args()
+    if not os.path.isfile(args.image_file):
+        print("The provided image file path does not exist.")
+    else:
+        main(args.image_file)
 
-select_button = tk.Button(frame, text="Select Image", command=select_file)
-select_button.pack(side=tk.LEFT)
-
-text_area = tk.Text(root, wrap=tk.WORD, height=20, width=60)
-text_area.pack(padx=10, pady=10)
-
-root.mainloop()
